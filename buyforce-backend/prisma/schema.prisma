@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String
+  slug String @unique
+
+  products Product[]
+}
+
+model Product {
+  id           Int    @id @default(autoincrement())
+  name         String
+  slug         String @unique
+  priceRegular Int
+  priceGroup   Int
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  groups Group[] // ✅ חדש
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      String   @default("user") // <-- חדש (user | admin)
+  createdAt DateTime @default(now())
+
+  groups   GroupMember[]
+  payments Payment[]
+}
+
+model Group {
+  id        Int @id @default(autoincrement())
+  productId Int
+
+  status String // open | completed | paid ✅ אחד בלבד
+
+  target    Int       @default(3)
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  product  Product       @relation(fields: [productId], references: [id])
+  members  GroupMember[]
+  payments Payment[]
+}
+
+model GroupMember {
+  id       Int      @id @default(autoincrement())
+  groupId  Int
+  userId   String
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+model Payment {
+  id             Int      @id @default(autoincrement())
+  groupId        Int
+  userId         String
+  amount         Int
+  status         String   // pending | success | failed
+  provider       String   // paypal
+  paypalOrderId  String?  // order id מ-PayPal
+  createdAt      DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId]) // 🔴 זה הקריטי
+}
+
+
