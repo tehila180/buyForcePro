@@ -58,7 +58,8 @@ async createPayPalOrder(userId: string, groupId: number) {
     data: { paypalOrderId: response.result.id },
   });
 
-  return response.result;
+  return { orderId: response.result.id };
+
 }
 
 
@@ -94,21 +95,22 @@ async checkAndCloseGroup(groupId: number) {
 
   if (!group) throw new Error('Group not found');
 
-  const paidCount = group.payments.filter(
-    (p) => p.status === 'CAPTURED',
-  ).length;
+  const paidUsers = new Set(
+  group.payments
+    .filter(p => p.status === 'CAPTURED')
+    .map(p => p.userId),
+);
 
-  const membersCount = group.members.length;
+if (paidUsers.size === group.members.length) {
+  await this.prisma.group.update({
+    where: { id: group.id },
+    data: {
+      status: 'paid',
+      paidAt: new Date(),
+    },
+  });
+}
 
-  if (paidCount === membersCount && membersCount > 0) {
-    await this.prisma.group.update({
-      where: { id: groupId },
-      data: {
-        status: 'paid',
-        paidAt: new Date(),
-      },
-    });
-  }
 }
 
 
