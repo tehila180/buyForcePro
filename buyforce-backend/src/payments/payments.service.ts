@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getPayPalClient } from './paypal.client';
 import * as paypal from '@paypal/checkout-server-sdk';
@@ -13,11 +13,12 @@ export class PaymentsService {
       include: { product: true },
     });
 
-    if (!group) throw new Error('Group not found');
+    if (!group) {
+      throw new Error('Group not found');
+    }
 
     const amount = group.product.priceGroup;
 
-    // 1. Payment DB
     const payment = await this.prisma.payment.create({
       data: {
         provider: 'PAYPAL',
@@ -28,9 +29,9 @@ export class PaymentsService {
       },
     });
 
-    // 2. PayPal order
     const client = getPayPalClient();
     const request = new paypal.orders.OrdersCreateRequest();
+
     request.requestBody({
       intent: 'CAPTURE',
       purchase_units: [
@@ -45,7 +46,6 @@ export class PaymentsService {
 
     const response = await client.execute(request);
 
-    // 3. save PayPal orderId
     await this.prisma.payment.update({
       where: { id: payment.id },
       data: { paypalOrderId: response.result.id },
@@ -59,50 +59,52 @@ export class PaymentsService {
       where: { paypalOrderId: orderId },
     });
 
-    if (!payment) throw new Error('Payment not found');
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
 
     const client = getPayPalClient();
     const request = new paypal.orders.OrdersCaptureRequest(orderId);
     const response = await client.execute(request);
 
-    // update payment
     await this.prisma.payment.update({
       where: { id: payment.id },
-      data: { status: 'CAPTURED', paypalCaptureId: response.result.id },
+      data: {
+        status: 'CAPTURED',
+        paypalCaptureId: response.result.id,
+      },
     });
 
-    // 🔒 בדיקה אם כולם שילמו
     await this.checkAndCloseGroup(payment.groupId);
 
     return response.result;
   }
 
   async checkAndCloseGroup(groupId: number) {
-  const group = await this.prisma.group.findUnique({
-  where: { id: groupId },
-  include: {
-    members: true,
-    payments: true,
-  },
-});
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        members: true,
+        payments: true,
+      },
+    });
 
-if (!group) {
-  throw new Error('Group not found');
-}
+    if (!group) {
+      throw new Error('Group not found');
+    }
 
-const paidUsersCount = group.payments.filter(
-  (p) => p.status === 'CAPTURED',
-).length;
+    const paidUsersCount = group.payments.filter(
+      (p) => p.status === 'CAPTURED',
+    ).length;
 
-if (paidUsersCount === group.members.length) {
-  await this.prisma.group.update({
-    where: { id: group.id },
-    data: {
-      status: 'paid',
-      paidAt: new Date(),
-    },
-  });
-}
+    if (paidUsersCount === group.members.length) {
+      await this.prisma.group.update({
+        where: { id: group.id },
+        data: {
+          status: 'paid',
+          paidAt: new Date(),
+        },
+      });
+    }
   }
 }
-
