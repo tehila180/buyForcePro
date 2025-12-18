@@ -67,20 +67,38 @@ model GroupMember {
   @@unique([groupId, userId])
 }
 
-model Payment {
-  id             Int      @id @default(autoincrement())
-  groupId        Int
-  userId         String
-  amount         Int
-  status         String   // pending | success | failed
-  provider       String   // paypal
-  paypalOrderId  String?  // order id מ-PayPal
-  createdAt      DateTime @default(now())
-
-  group Group @relation(fields: [groupId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
-
-  @@unique([groupId, userId]) // 🔴 זה הקריטי
+enum PaymentProvider {
+  PAYPAL
 }
+
+enum PaymentStatus {
+  CREATED
+  APPROVED
+  CAPTURED
+  FAILED
+  CANCELED
+}
+
+model Payment {
+  id              String         @id @default(uuid())
+  provider        PaymentProvider
+  status          PaymentStatus  @default(CREATED)
+
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+
+  groupId         Int            
+  group           Group          @relation(fields: [groupId], references: [id])
+
+  amount          Int
+  currency        String         @default("ILS")
+
+  paypalOrderId   String?        @unique
+  paypalCaptureId String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
 
 
