@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { paypalClient } from './paypal.client';
+import { getPayPalClient } from './paypal.client';
 import * as paypal from '@paypal/checkout-server-sdk';
 
 @Injectable()
@@ -78,23 +78,31 @@ export class PaymentsService {
   }
 
   async checkAndCloseGroup(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: { members: true, payments: true },
-    });
+  const group = await this.prisma.group.findUnique({
+  where: { id: groupId },
+  include: {
+    members: true,
+    payments: true,
+  },
+});
 
-    const paidUsers = group.payments.filter(
-      p => p.status === 'CAPTURED'
-    ).length;
+if (!group) {
+  throw new Error('Group not found');
+}
 
-   if (paidUsers.length === group.members.length) {
-  // סגירת קבוצה
-      await this.prisma.group.update({
-        where: { id: groupId },
-        data: { status: 'paid', paidAt: new Date() },
-      });
-    }
+const paidUsersCount = group.payments.filter(
+  (p) => p.status === 'CAPTURED',
+).length;
+
+if (paidUsersCount === group.members.length) {
+  await this.prisma.group.update({
+    where: { id: group.id },
+    data: {
+      status: 'paid',
+      paidAt: new Date(),
+    },
+  });
+}
   }
-  
 }
 
