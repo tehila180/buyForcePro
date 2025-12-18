@@ -13,8 +13,9 @@ export class PaymentsController {
     return this.payments.createPayPalOrder(req.user.id, Number(groupId));
   }
 
-  @Get('capture')
-  capture(@Req() req: any, @Query('token') token: string) {
-    return this.payments.capturePayPalOrder(req.user.id, token);
-  }
+ @Post('paypal/capture')
+capture(@Query('token') token: string) {
+  return this.payments.capturePayPalOrder(token);
+}
+
 }
