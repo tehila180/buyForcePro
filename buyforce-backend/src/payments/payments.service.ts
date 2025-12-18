@@ -7,8 +7,7 @@ import * as paypal from '@paypal/checkout-server-sdk';
 @Injectable()
 export class PaymentsService {
   constructor(private prisma: PrismaService) {}
-
-  async createPayPalOrder(userId: string, groupId: number) {
+async createPayPalOrder(userId: string, groupId: number) {
   const existing = await this.prisma.payment.findFirst({
     where: { userId, groupId, status: 'CAPTURED' },
   });
@@ -63,55 +62,50 @@ export class PaymentsService {
 }
 
 
-  async capturePayPalOrder(userId: string, orderId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { paypalOrderId: orderId },
-    });
+  async capturePayPalOrder(orderId: string) {
+  const payment = await this.prisma.payment.findUnique({
+    where: { paypalOrderId: orderId },
+    include: { group: { include: { members: true, payments: true } } },
+  });
 
-    if (!payment) throw new BadRequestException('Payment not found');
-    if (payment.userId !== userId) throw new BadRequestException('Not your payment');
+  if (!payment) throw new Error('Payment not found');
 
-    const client = getPayPalClient();
-    const request = new paypal.orders.OrdersCaptureRequest(orderId);
-    request.requestBody({});
+  const client = getPayPalClient();
+  const request = new paypal.orders.OrdersCaptureRequest(orderId);
+  await client.execute(request);
 
-    const response = await client.execute(request);
+  await this.prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: 'CAPTURED' },
+  });
 
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: 'CAPTURED',
-        paypalCaptureId: response.result?.id ?? null,
-      },
-    });
-
-    await this.checkAndCloseGroup(payment.groupId);
-
-    return response.result;
-  }
-
-  private async checkAndCloseGroup(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: { members: true, payments: true },
-    });
-    if (!group) return;
-
-    // ✅ לא סוגרים קבוצה לפני שמלאה (target)
-    if (group.members.length < group.target) return;
-
-    const paidUserIds = new Set(
-      group.payments
-        .filter((p) => p.status === 'CAPTURED')
-        .map((p) => p.userId),
-    );
-
-    // ✅ כולם שילמו (כל מי שחבר בקבוצה)
-    if (paidUserIds.size === group.members.length) {
-      await this.prisma.group.update({
-        where: { id: group.id },
-        data: { status: 'paid', paidAt: new Date() },
-      });
-    }
-  }
+  await this.checkAndCloseGroup(payment.groupId);
 }
+
+
+
+ async checkAndCloseGroup(groupId: number) {
+  const group = await this.prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      members: true,
+      payments: true,
+    },
+  });
+
+  if (!group) return;
+
+  const paidUserIds = new Set(
+  group.payments
+    .filter(p => p.status === 'CAPTURED')
+    .map(p => p.userId)
+);
+
+if (paidUserIds.size === group.members.length) {
+  await this.prisma.group.update({
+    where: { id: group.id },
+    data: { status: 'paid', paidAt: new Date() },
+  });
+}
+ }}
+
