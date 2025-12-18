@@ -87,12 +87,14 @@ export class PaymentsService {
       p => p.status === 'CAPTURED'
     ).length;
 
-    if (paidUsers === group.members.length) {
+   if (paidUsers.length === group.members.length) {
+  // סגירת קבוצה
       await this.prisma.group.update({
         where: { id: groupId },
         data: { status: 'paid', paidAt: new Date() },
       });
     }
   }
+  
 }
 
