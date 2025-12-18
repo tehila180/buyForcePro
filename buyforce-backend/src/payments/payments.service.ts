@@ -81,30 +81,39 @@ export class PaymentsService {
   }
 
   async checkAndCloseGroup(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        members: true,
-        payments: true,
+  const group = await this.prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      members: true,
+      payments: true,
+    },
+  });
+
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
+  // משתמשים ששילמו בפועל
+  const paidUserIds = new Set(
+    group.payments
+      .filter(p => p.status === 'CAPTURED')
+      .map(p => p.userId),
+  );
+
+  // בדיקה שכל חבר בקבוצה שילם
+  const allPaid = group.members.every(member =>
+    paidUserIds.has(member.userId),
+  );
+
+  if (allPaid) {
+    await this.prisma.group.update({
+      where: { id: group.id },
+      data: {
+        status: 'paid',
+        paidAt: new Date(),
       },
     });
-
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    const paidUsersCount = group.payments.filter(
-      (p) => p.status === 'CAPTURED',
-    ).length;
-
-    if (paidUsersCount === group.members.length) {
-      await this.prisma.group.update({
-        where: { id: group.id },
-        data: {
-          status: 'paid',
-          paidAt: new Date(),
-        },
-      });
-    }
   }
+}
+
 }
