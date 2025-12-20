@@ -13,7 +13,6 @@ import { AuthGuard } from '@nestjs/passport';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // ⬅️ נקרא אחרי PayPal approve + capture בצד לקוח
   @Post('confirm')
   async confirmPayment(
     @Req() req: any,
@@ -30,4 +29,3 @@ export class PaymentsController {
     );
   }
 }
-    
