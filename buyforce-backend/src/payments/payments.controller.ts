@@ -1,28 +1,21 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+// src/payments/payments.controller.ts
+import { Controller, Post, Get, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('payments/paypal')
 @UseGuards(AuthGuard('jwt'))
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private payments: PaymentsService) {}
 
-  // ⬅️ נקרא אחרי PayPal approve + capture בצד לקוח
- @Post('confirm')
-confirmPayment(
-  @Req() req: any,
-  @Body() body: { groupId: number; paypalOrderId: string },
-) {
-  return this.paymentsService.confirmPayment(
-    req.user.id,
-    body.groupId,
-    body.paypalOrderId,
-  );
+  @Post('create')
+  create(@Req() req: any, @Body('groupId') groupId: number) {
+    return this.payments.createPayPalOrder(req.user.id, Number(groupId));
+  }
+
+ @Post('paypal/capture')
+capture(@Query('token') token: string) {
+  return this.payments.capturePayPalOrder(token);
 }
+
 }
