@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -42,19 +38,15 @@ export class PaymentsService {
     }
 
     // 3️⃣ בדיקה: המשתמש חבר בקבוצה
-    const isMember = group.members.some(
-      m => m.userId === userId,
-    );
+    const isMember = group.members.some(m => m.userId === userId);
     if (!isMember) {
-      throw new ForbiddenException(
-        'User is not a member of this group',
-      );
+      throw new ForbiddenException('User is not a member of this group');
     }
 
     // 4️⃣ יצירת תשלום
     const payment = await this.prisma.payment.create({
       data: {
-        provider: 'PAYPAL',
+        provider: 'PAYPAL', // ✅ עקבי
         status: 'CAPTURED',
         userId,
         groupId,
