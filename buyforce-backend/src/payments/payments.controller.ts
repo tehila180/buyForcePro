@@ -16,14 +16,10 @@ export class PaymentsController {
   @Post('confirm')
   async confirmPayment(
     @Req() req: any,
-    @Body()
-    body: {
-      groupId: number;
-      paypalOrderId: string;
-    },
+    @Body() body: { groupId: number; paypalOrderId: string },
   ) {
     return this.paymentsService.confirmPayment(
-      req.user.id,
+      req.user.userId, // ✅ תיקון קריטי
       body.groupId,
       body.paypalOrderId,
     );
