@@ -79,10 +79,7 @@ enum PaymentStatus {
   CANCELED
   
 }
-enum PaymentType {
-  JOIN
-  FINAL
-}
+
 
 
 model Payment {
@@ -104,7 +101,6 @@ model Payment {
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-   type            PaymentType    @default(JOIN) 
 }
 
 
