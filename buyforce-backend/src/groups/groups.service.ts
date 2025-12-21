@@ -36,27 +36,30 @@ export class GroupsService {
 
   // ✅ קבוצה אחת + מי שילם
   async findOne(groupId: number, userId: string) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        product: true,
-        members: {
-          include: { user: true },
-        },
-        payments: true,
+  const group = await this.prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      product: true,
+      members: {
+        include: { user: true },
       },
-    });
+      payments: true,
+    },
+  });
 
-    if (!group) throw new NotFoundException('קבוצה לא נמצאה');
-
-    const paidUserIds = group.payments
-      .filter(p => p.status === 'CAPTURED')
-      .map(p => p.userId);
-
-    return {
-      ...group,
-      paidUserIds,
-      hasPaid: paidUserIds.includes(userId),
-    };
+  if (!group) {
+    throw new NotFoundException('קבוצה לא נמצאה');
   }
+
+  const paidUserIds = group.payments
+    ?.filter(p => p.status === 'CAPTURED')
+    .map(p => p.userId) ?? [];
+
+  return {
+    ...group,
+    paidUserIds,
+    hasPaid: paidUserIds.includes(userId),
+  };
+}
+
 }
