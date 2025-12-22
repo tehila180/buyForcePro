@@ -31,7 +31,6 @@ export class GroupsService {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
     });
-
     if (!product) throw new NotFoundException('מוצר לא נמצא');
 
     const group = await this.prisma.group.create({
@@ -75,15 +74,6 @@ export class GroupsService {
       currentUserId: userId,
       isMember,
     };
-  }
-
-  async cancelGroup(groupId: number) {
-    await this.prisma.group.update({
-      where: { id: groupId },
-      data: { status: 'cancelled' },
-    });
-
-    return { success: true };
   }
 
   async findFeatured() {
