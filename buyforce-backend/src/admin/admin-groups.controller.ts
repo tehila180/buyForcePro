@@ -1,11 +1,13 @@
-// src/admin/admin-groups.controller.ts
 import {
   Controller,
   Get,
+  Post,
   Put,
   Delete,
   Param,
+  Body,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -30,6 +32,26 @@ export class AdminGroupsController {
     });
   }
 
+  // ➕ יצירת קבוצה (בלי לצרף את המנהל!)
+  @Post()
+  async create(
+    @Body() body: { productId: number; target: number },
+  ) {
+    const { productId, target } = body;
+
+    if (!productId || !target) {
+      throw new BadRequestException('productId ו-target חובה');
+    }
+
+    return this.prisma.group.create({
+      data: {
+        productId,
+        target,
+        status: 'open',
+      },
+    });
+  }
+
   // 🔄 שינוי סטטוס
   @Put(':id/status/:status')
   updateStatus(
@@ -42,19 +64,17 @@ export class AdminGroupsController {
     });
   }
 
-  // 🗑️ מחיקת קבוצה
- @Delete(':id')
-async delete(@Param('id') id: string) {
-  const groupId = Number(id);
+  // 🗑️ מחיקת קבוצה (כולל חברים)
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    const groupId = Number(id);
 
-  // 1️⃣ מחיקת חברי הקבוצה
-  await this.prisma.groupMember.deleteMany({
-    where: { groupId },
-  });
+    await this.prisma.groupMember.deleteMany({
+      where: { groupId },
+    });
 
-  // 2️⃣ מחיקת הקבוצה
-  return this.prisma.group.delete({
-    where: { id: groupId },
-  });
-}
+    return this.prisma.group.delete({
+      where: { id: groupId },
+    });
+  }
 }
