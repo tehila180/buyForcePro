@@ -49,14 +49,13 @@ export class GroupsService {
     });
   }
 
-  // ⭐ קבוצה אחת
-  async findOne(groupId: number, userId: string) {
+  // ⭐ קבוצה אחת – ציבורית
+  async findOnePublic(groupId: number) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: {
         product: true,
         members: { include: { user: true } },
-        payments: true,
       },
     });
 
@@ -64,14 +63,7 @@ export class GroupsService {
       throw new NotFoundException('קבוצה לא נמצאה');
     }
 
-    const hasPaid = group.payments.some(
-      p => p.userId === userId && p.status === 'CAPTURED',
-    );
-
-    return {
-      ...group,
-      hasPaid,
-    };
+    return group;
   }
 
   // ⭐ ביטול קבוצה
