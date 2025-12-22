@@ -1,113 +1,85 @@
 import {
-  Injectable,
-  NotFoundException,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Req,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { GroupsService } from './groups.service';
+import { JwtAuthGuard } from '../auth/jwt.guard';
 
-@Injectable()
-export class GroupsService {
-  constructor(private prisma: PrismaService) {}
+@Controller('groups')
+export class GroupsController {
+  constructor(private readonly groupsService: GroupsService) {}
+
+  // ⭐ קבוצות פתוחות לדף הבית
+  @Get('featured')
+  findFeatured() {
+    return this.groupsService.findFeatured();
+  }
+
+  // ⭐ קבוצות לפי מוצר (ציבורי)
+  @Get('product/:productId')
+  getByProduct(@Param('productId') productId: string) {
+    const id = Number(productId);
+    if (isNaN(id)) {
+      throw new BadRequestException('Product ID must be a number');
+    }
+    return this.groupsService.findByProduct(id);
+  }
 
   // ⭐ הקבוצות שלי
-  async findMyGroups(userId: string) {
-    const memberships = await this.prisma.groupMember.findMany({
-      where: { userId },
-      include: {
-        group: {
-          include: {
-            product: true,
-            members: true,
-            payments: true,
-          },
-        },
-      },
-    });
+  @UseGuards(JwtAuthGuard)
+  @Get('my')
+  getMyGroups(@Req() req: any) {
+    return this.groupsService.findMyGroups(req.user.userId);
+  }
 
-    return memberships.map(m => {
-      const hasPaid = m.group.payments.some(
-        p => p.userId === userId && p.status === 'CAPTURED',
-      );
-
-      return {
-        ...m.group,
-        hasPaid,
-      };
-    });
+  // ⭐ פתיחת קבוצה חדשה (מחייב התחברות)
+  @UseGuards(JwtAuthGuard)
+  @Post('create/:productId')
+  createGroup(
+    @Param('productId') productId: string,
+    @Req() req: any,
+  ) {
+    const id = Number(productId);
+    if (isNaN(id)) {
+      throw new BadRequestException('Product ID must be a number');
+    }
+    return this.groupsService.createGroup(id, req.user.userId);
   }
 
   // ⭐ הצטרפות לקבוצה
-  async joinGroup(groupId: number, userId: string) {
-    await this.prisma.groupMember.upsert({
-      where: { groupId_userId: { groupId, userId } },
-      update: {},
-      create: { groupId, userId },
-    });
-
-    return this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: { members: true },
-    });
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/join')
+  joinGroup(@Param('id') id: string, @Req() req: any) {
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
+    }
+    return this.groupsService.joinGroup(groupId, req.user.userId);
   }
 
-  // ⭐ קבוצה אחת – ציבורית
-  async findOnePublic(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        product: true,
-        members: { include: { user: true } },
-      },
-    });
-
-    if (!group) {
-      throw new NotFoundException('קבוצה לא נמצאה');
+  // ⭐ קבוצה אחת – ציבורי
+  @Get(':id')
+  getOne(@Param('id') id: string) {
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
     }
-
-    return group;
+    return this.groupsService.findOnePublic(groupId);
   }
 
   // ⭐ ביטול קבוצה
-  async cancelGroup(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('קבוצה לא נמצאה');
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/cancel')
+  cancel(@Param('id') id: string) {
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
     }
-
-    await this.prisma.group.update({
-      where: { id: groupId },
-      data: { status: 'cancelled' },
-    });
-
-    return { success: true };
+    return this.groupsService.cancelGroup(groupId);
   }
-
-  // ⭐ קבוצות פתוחות לדף הבית
-  async findFeatured() {
-    return this.prisma.group.findMany({
-      where: { status: 'open' },
-      include: {
-        product: true,
-        members: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-  // ⭐ קבוצות לפי מוצר
-async findByProduct(productId: number) {
-  return this.prisma.group.findMany({
-    where: {
-      productId,
-      status: 'open',
-    },
-    include: {
-      members: true,
-      product: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-}
-
 }
