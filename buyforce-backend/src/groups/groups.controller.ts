@@ -5,6 +5,7 @@ import {
   Param,
   Req,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -13,36 +14,44 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
-  // ⭐ קבוצות פתוחות לדף הבית
   @Get('featured')
   findFeatured() {
     return this.groupsService.findFeatured();
   }
 
-  // ⭐ הקבוצות שלי (מחייב התחברות)
   @UseGuards(JwtAuthGuard)
   @Get('my')
   getMyGroups(@Req() req: any) {
     return this.groupsService.findMyGroups(req.user.userId);
   }
 
-  // ⭐ הצטרפות לקבוצה (מחייב התחברות)
   @UseGuards(JwtAuthGuard)
   @Post(':id/join')
   joinGroup(@Param('id') id: string, @Req() req: any) {
-    return this.groupsService.joinGroup(Number(id), req.user.userId);
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
+    }
+    return this.groupsService.joinGroup(groupId, req.user.userId);
   }
 
-  // ⭐ קבוצה אחת – ציבורי ❗
+  // ⭐ ציבורי ומוגן משגיאות
   @Get(':id')
   getOne(@Param('id') id: string) {
-    return this.groupsService.findOnePublic(Number(id));
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
+    }
+    return this.groupsService.findOnePublic(groupId);
   }
 
-  // ⭐ ביטול קבוצה (Admin / מחייב התחברות)
   @UseGuards(JwtAuthGuard)
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
-    return this.groupsService.cancelGroup(Number(id));
+    const groupId = Number(id);
+    if (isNaN(groupId)) {
+      throw new BadRequestException('Group ID must be a number');
+    }
+    return this.groupsService.cancelGroup(groupId);
   }
 }
