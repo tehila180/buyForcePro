@@ -5,7 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 export class GroupsService {
   constructor(private prisma: PrismaService) {}
 
-  // ⭐ הקבוצות שלי
+  // =========================
+  // ⭐ הקבוצות שלי – לאזור האישי
+  // =========================
   async findMyGroups(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
       where: { userId },
@@ -13,22 +15,41 @@ export class GroupsService {
         group: {
           include: {
             product: true,
-            members: true,
+            members: { include: { user: true } },
             payments: true,
           },
         },
       },
     });
 
-    return memberships.map(m => ({
-      group: m.group,
-      hasPaid: m.group.payments.some(
+    return memberships.map(m => {
+      const group = m.group;
+
+      const membersCount = group.members.length;
+      const target = group.target;
+
+      const isCompleted = membersCount >= target;
+
+      const hasPaid = group.payments.some(
         p => p.userId === userId && p.status === 'CAPTURED',
-      ),
-    }));
+      );
+
+      return {
+        id: group.id,
+        product: group.product,
+        members: group.members,
+        membersCount,
+        target,
+        status: group.status,
+        isCompleted,
+        hasPaid,
+      };
+    });
   }
 
+  // =========================
   // ⭐ פתיחת קבוצה
+  // =========================
   async createGroup(productId: number, userId: string) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -46,7 +67,9 @@ export class GroupsService {
     return group;
   }
 
+  // =========================
   // ⭐ הצטרפות לקבוצה
+  // =========================
   async joinGroup(groupId: number, userId: string) {
     await this.prisma.groupMember.upsert({
       where: { groupId_userId: { groupId, userId } },
@@ -57,7 +80,9 @@ export class GroupsService {
     return { success: true };
   }
 
+  // =========================
   // ⭐ קבוצה ציבורית
+  // =========================
   async findOnePublic(groupId: number, userId: string | null) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
@@ -80,7 +105,9 @@ export class GroupsService {
     };
   }
 
+  // =========================
   // ⭐ קבוצות לדף הבית
+  // =========================
   async findFeatured() {
     return this.prisma.group.findMany({
       where: { status: 'open' },
@@ -89,7 +116,9 @@ export class GroupsService {
     });
   }
 
+  // =========================
   // ⭐ קבוצות לפי מוצר
+  // =========================
   async findByProduct(productId: number) {
     return this.prisma.group.findMany({
       where: { productId, status: 'open' },
