@@ -31,14 +31,27 @@ export class GroupsService {
           .map(p => p.userId),
       );
 
+      const membersCount = group.members.length;
+      const isCompleted = membersCount >= group.target;
+
+      // ✅ כולם שילמו = כל חבר בקבוצה נמצא ב-paidUserIds
+      const allPaid = group.members.every(mem => paidUserIds.has(mem.userId));
+
       return {
         id: group.id,
         product: group.product,
+
+        // זה רק לתצוגה! לא משנה DB
         status: group.status,
+        statusView: allPaid ? 'paid' : group.status,
+
         target: group.target,
-        membersCount: group.members.length,
-        isCompleted: group.members.length >= group.target,
+        membersCount,
+        isCompleted,
+        allPaid,
+
         hasPaid: paidUserIds.has(userId),
+
         members: group.members.map(mem => ({
           id: mem.user.id,
           name: mem.user.username || mem.user.email,
@@ -102,6 +115,11 @@ export class GroupsService {
         .map(p => p.userId),
     );
 
+    const membersCount = group.members.length;
+    const isCompleted = membersCount >= group.target;
+
+    const allPaid = group.members.every(mem => paidUserIds.has(mem.userId));
+
     const isMember = userId
       ? group.members.some(m => m.userId === userId)
       : false;
@@ -109,15 +127,21 @@ export class GroupsService {
     return {
       id: group.id,
       product: group.product,
+
       status: group.status,
+      statusView: allPaid ? 'paid' : group.status,
+
       target: group.target,
-      membersCount: group.members.length,
+      membersCount,
+      isCompleted,
+      allPaid,
       isMember,
+
       members: group.members.map(mem => ({
         id: mem.user.id,
         name: mem.user.username || mem.user.email,
         hasPaid: paidUserIds.has(mem.user.id),
-        isMe: mem.user.id === userId,
+        isMe: userId ? mem.user.id === userId : false,
       })),
     };
   }
