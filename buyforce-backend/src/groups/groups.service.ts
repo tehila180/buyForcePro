@@ -95,4 +95,19 @@ export class GroupsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+  // ⭐ קבוצות לפי מוצר
+async findByProduct(productId: number) {
+  return this.prisma.group.findMany({
+    where: {
+      productId,
+      status: 'open',
+    },
+    include: {
+      members: true,
+      product: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 }
