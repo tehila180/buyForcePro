@@ -6,7 +6,7 @@ export class GroupsService {
   constructor(private prisma: PrismaService) {}
 
   // =========================
-  // ⭐ הקבוצות שלי – לאזור האישי
+  // ⭐ הקבוצות שלי – אזור אישי
   // =========================
   async findMyGroups(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
@@ -25,24 +25,25 @@ export class GroupsService {
     return memberships.map(m => {
       const group = m.group;
 
-      const membersCount = group.members.length;
-      const target = group.target;
-
-      const isCompleted = membersCount >= target;
-
-      const hasPaid = group.payments.some(
-        p => p.userId === userId && p.status === 'CAPTURED',
+      const paidUserIds = new Set(
+        group.payments
+          .filter(p => p.status === 'CAPTURED')
+          .map(p => p.userId),
       );
 
       return {
         id: group.id,
         product: group.product,
-        members: group.members,
-        membersCount,
-        target,
         status: group.status,
-        isCompleted,
-        hasPaid,
+        target: group.target,
+        membersCount: group.members.length,
+        isCompleted: group.members.length >= group.target,
+        hasPaid: paidUserIds.has(userId),
+        members: group.members.map(mem => ({
+          id: mem.user.id,
+          name: mem.user.username || mem.user.email,
+          hasPaid: paidUserIds.has(mem.user.id),
+        })),
       };
     });
   }
@@ -89,19 +90,35 @@ export class GroupsService {
       include: {
         product: true,
         members: { include: { user: true } },
+        payments: true,
       },
     });
 
     if (!group) throw new NotFoundException('קבוצה לא נמצאה');
+
+    const paidUserIds = new Set(
+      group.payments
+        .filter(p => p.status === 'CAPTURED')
+        .map(p => p.userId),
+    );
 
     const isMember = userId
       ? group.members.some(m => m.userId === userId)
       : false;
 
     return {
-      ...group,
-      currentUserId: userId,
+      id: group.id,
+      product: group.product,
+      status: group.status,
+      target: group.target,
+      membersCount: group.members.length,
       isMember,
+      members: group.members.map(mem => ({
+        id: mem.user.id,
+        name: mem.user.username || mem.user.email,
+        hasPaid: paidUserIds.has(mem.user.id),
+        isMe: mem.user.id === userId,
+      })),
     };
   }
 
