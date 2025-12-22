@@ -14,6 +14,12 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT || 3001);
+  // 🚨 קריטי ל-Railway / Docker / Cloud
+  await app.listen(process.env.PORT || 3001, '0.0.0.0');
+
+  console.log(
+    `🚀 Server is running on port ${process.env.PORT || 3001}`,
+  );
 }
+
 bootstrap();
