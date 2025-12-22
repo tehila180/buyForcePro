@@ -48,11 +48,14 @@ export class GroupsController {
     return this.groupsService.joinGroup(groupId, req.user.userId);
   }
 
+  // 👇 ציבורי + מחזיר מי המשתמש אם מחובר
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(@Param('id') id: string, @Req() req: any) {
     const groupId = Number(id);
     if (isNaN(groupId)) throw new BadRequestException('Group ID must be a number');
-    return this.groupsService.findOnePublic(groupId);
+
+    const userId = req.user?.userId ?? null;
+    return this.groupsService.findOnePublic(groupId, userId);
   }
 
   @UseGuards(JwtAuthGuard)
