@@ -6,7 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  providers: [GroupsService],
   controllers: [GroupsController],
+  providers: [GroupsService],
 })
 export class GroupsModule {}
