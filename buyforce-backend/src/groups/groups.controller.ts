@@ -13,33 +13,30 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
-  // ⭐ קבוצות פתוחות לדף הבית
   @Get('featured')
   findFeatured() {
     return this.groupsService.findFeatured();
   }
 
-  // ⭐ הקבוצות שלי (מחייב התחברות)
   @UseGuards(JwtAuthGuard)
   @Get('my')
   getMyGroups(@Req() req: any) {
     return this.groupsService.findMyGroups(req.user.userId);
   }
 
-  // ⭐ הצטרפות לקבוצה (מחייב התחברות)
   @UseGuards(JwtAuthGuard)
   @Post(':id/join')
   joinGroup(@Param('id') id: string, @Req() req: any) {
     return this.groupsService.joinGroup(Number(id), req.user.userId);
   }
 
-  // ⭐ קבוצה אחת – ציבורי ❗
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getOne(@Param('id') id: string) {
-    return this.groupsService.findOnePublic(Number(id));
+  getOne(@Param('id') id: string, @Req() req: any) {
+    return this.groupsService.findOne(Number(id), req.user.userId);
   }
 
-  // ⭐ ביטול קבוצה (Admin / מחייב התחברות)
+  // (Admin)
   @UseGuards(JwtAuthGuard)
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
