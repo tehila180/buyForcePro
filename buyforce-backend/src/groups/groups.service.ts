@@ -5,7 +5,6 @@ import { PrismaService } from '../prisma/prisma.service';
 export class GroupsService {
   constructor(private prisma: PrismaService) {}
 
-  // ⭐ הקבוצות שלי
   async findMyGroups(userId: string) {
     const memberships = await this.prisma.groupMember.findMany({
       where: { userId },
@@ -20,46 +19,32 @@ export class GroupsService {
       },
     });
 
-    return memberships.map(m => {
-      const hasPaid = m.group.payments.some(
+    return memberships.map(m => ({
+      ...m.group,
+      hasPaid: m.group.payments.some(
         p => p.userId === userId && p.status === 'CAPTURED',
-      );
-
-      return {
-        ...m.group,
-        hasPaid,
-      };
-    });
+      ),
+    }));
   }
 
-  // ⭐ פתיחת קבוצה חדשה
   async createGroup(productId: number, userId: string) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
     });
 
-    if (!product) {
-      throw new NotFoundException('מוצר לא נמצא');
-    }
+    if (!product) throw new NotFoundException('מוצר לא נמצא');
 
     const group = await this.prisma.group.create({
-      data: {
-        productId,
-        status: 'open',
-      },
+      data: { productId, status: 'open' },
     });
 
     await this.prisma.groupMember.create({
-      data: {
-        groupId: group.id,
-        userId,
-      },
+      data: { groupId: group.id, userId },
     });
 
     return group;
   }
 
-  // ⭐ הצטרפות לקבוצה
   async joinGroup(groupId: number, userId: string) {
     await this.prisma.groupMember.upsert({
       where: { groupId_userId: { groupId, userId } },
@@ -67,14 +52,10 @@ export class GroupsService {
       create: { groupId, userId },
     });
 
-    return this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: { members: true },
-    });
+    return { success: true };
   }
 
-  // ⭐ קבוצה ציבורית
-  async findOnePublic(groupId: number) {
+  async findOnePublic(groupId: number, userId: string | null) {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: {
@@ -83,23 +64,20 @@ export class GroupsService {
       },
     });
 
-    if (!group) {
-      throw new NotFoundException('קבוצה לא נמצאה');
-    }
+    if (!group) throw new NotFoundException('קבוצה לא נמצאה');
 
-    return group;
+    const isMember = userId
+      ? group.members.some(m => m.userId === userId)
+      : false;
+
+    return {
+      ...group,
+      currentUserId: userId,
+      isMember,
+    };
   }
 
-  // ⭐ ביטול קבוצה
   async cancelGroup(groupId: number) {
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('קבוצה לא נמצאה');
-    }
-
     await this.prisma.group.update({
       where: { id: groupId },
       data: { status: 'cancelled' },
@@ -108,7 +86,6 @@ export class GroupsService {
     return { success: true };
   }
 
-  // ⭐ קבוצות פתוחות
   async findFeatured() {
     return this.prisma.group.findMany({
       where: { status: 'open' },
@@ -117,11 +94,10 @@ export class GroupsService {
     });
   }
 
-  // ⭐ קבוצות לפי מוצר
   async findByProduct(productId: number) {
     return this.prisma.group.findMany({
       where: { productId, status: 'open' },
-      include: { members: true, product: true },
+      include: { product: true, members: true },
       orderBy: { createdAt: 'desc' },
     });
   }
