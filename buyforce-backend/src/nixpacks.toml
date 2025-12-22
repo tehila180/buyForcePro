@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm"]
+
+[phases.install]
+cmds = [
+  "cd buyforce-backend",
+  "npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd buyforce-backend",
+  "npx prisma generate",
+  "npx prisma migrate deploy",
+  "npm run build"
+]
+
+[start]
+cmd = "cd buyforce-backend && npm run start:prod"
