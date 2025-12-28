@@ -6,19 +6,19 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      'http://localhost:3000',
-      /^https:\/\/buyforce-web-.*\.vercel\.app$/,
+      'http://localhost:3000', // web
+      'http://localhost:8081', // expo dev / web
+      /^https:\/\/.*\.railway\.app$/, // railway
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 
-  // 🚨 קריטי ל-Railway / Docker / Cloud
   await app.listen(process.env.PORT || 3001, '0.0.0.0');
 
   console.log(
-    `🚀 Server is running on port ${process.env.PORT || 3001}`,
+    `🚀 Server running on port ${process.env.PORT || 3001}`,
   );
 }
 
