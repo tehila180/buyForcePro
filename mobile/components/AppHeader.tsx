@@ -38,7 +38,7 @@ export default function AppHeader({ navigation }: Props) {
   const [logged, setLogged] = useState(false);
   const [admin, setAdmin] = useState(false);
 
-  // 🔄 מתעדכן כל פעם שהמסך בפוקוס
+  // 🔄 מתעדכן בכל פוקוס
   useFocusEffect(
     useCallback(() => {
       checkAuth(setLogged, setAdmin);
@@ -62,7 +62,6 @@ export default function AppHeader({ navigation }: Props) {
           </Pressable>
 
           <View style={styles.nav}>
-            {/* ❌ לא מחובר */}
             {!logged && (
               <>
                 <Pressable onPress={() => navigation.navigate('Home')}>
@@ -77,7 +76,6 @@ export default function AppHeader({ navigation }: Props) {
               </>
             )}
 
-            {/* ✅ מחובר */}
             {logged && (
               <>
                 <Pressable onPress={() => navigation.navigate('Home')}>
@@ -113,6 +111,11 @@ export default function AppHeader({ navigation }: Props) {
 
             <Pressable onPress={() => navigation.navigate('AdminUsers')}>
               <Text style={styles.adminLink}>משתמשים</Text>
+            </Pressable>
+
+            {/* ⭐ חדש – סטטיסטיקות */}
+            <Pressable onPress={() => navigation.navigate('AdminStats')}>
+              <Text style={styles.adminLink}>סטטיסטיקות</Text>
             </Pressable>
           </View>
         )}
