@@ -22,14 +22,14 @@ type Group = {
   product: {
     name: string;
   };
-  status: string;
+  status: 'open' | 'completed' | 'paid';
   target: number;
   membersCount: number;
   isMember: boolean;
   members: Member[];
 };
 
-export default function GroupScreen({ route }: any) {
+export default function GroupScreen({ route, navigation }: any) {
   const { id } = route.params;
 
   const [group, setGroup] = useState<Group | null>(null);
@@ -84,6 +84,11 @@ export default function GroupScreen({ route }: any) {
   }
 
   const isFull = group.membersCount >= group.target;
+  const isCompleted = group.status === 'completed';
+  const isPaid = group.status === 'paid';
+
+  const me = group.members.find(m => m.isMe);
+  const iPaid = me?.hasPaid === true;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -100,24 +105,17 @@ export default function GroupScreen({ route }: any) {
         {group.members.map(m => (
           <View
             key={m.id}
-            style={[
-              styles.memberRow,
-              m.isMe && styles.meRow,
-            ]}
+            style={[styles.memberRow, m.isMe && styles.meRow]}
           >
             <Text>
               {m.name}
-              {m.isMe && (
-                <Text style={styles.meText}> (אני)</Text>
-              )}
+              {m.isMe && <Text style={styles.meText}> (אני)</Text>}
             </Text>
 
             <Text
               style={[
                 styles.payment,
-                m.hasPaid
-                  ? styles.paid
-                  : styles.pending,
+                m.hasPaid ? styles.paid : styles.pending,
               ]}
             >
               {m.hasPaid ? '✅ שילם' : '⏳ ממתין'}
@@ -126,10 +124,29 @@ export default function GroupScreen({ route }: any) {
         ))}
       </View>
 
-      {/* Status */}
+      {/* Status messages */}
       {group.isMember && (
+        <Text style={styles.success}>✔️ את כבר מצורפת לקבוצה</Text>
+      )}
+
+      {group.isMember && isCompleted && !iPaid && (
+        <Pressable
+          style={styles.payBtn}
+          onPress={() =>
+            navigation.navigate('Pay', { groupId: group.id })
+          }
+        >
+          <Text style={styles.payText}>💳 המשך לתשלום</Text>
+        </Pressable>
+      )}
+
+      {group.isMember && iPaid && (
+        <Text style={styles.success}>✅ שילמת בהצלחה</Text>
+      )}
+
+      {isPaid && (
         <Text style={styles.success}>
-          ✔️ את כבר מצורפת לקבוצה
+          🎉 הקבוצה נסגרה – כולם שילמו
         </Text>
       )}
 
@@ -137,7 +154,7 @@ export default function GroupScreen({ route }: any) {
         <Text style={styles.muted}>🚫 הקבוצה מלאה</Text>
       )}
 
-      {!group.isMember && !isFull && (
+      {!group.isMember && !isFull && group.status === 'open' && (
         <Pressable
           style={[
             styles.joinBtn,
@@ -227,6 +244,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  payBtn: {
+    backgroundColor: '#000',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  payText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
