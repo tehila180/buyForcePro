@@ -11,9 +11,14 @@ import MyGroupsScreen from './screens/MyGroupsScreen';
 import PayScreen from './screens/PayScreen';
 import CategoriesScreen from './screens/CategoriesScreen';
 import CategoryProductsScreen from './screens/CategoryProductsScreen';
-
+import AdminCategoriesScreen from './screens/admin/AdminCategoriesScreen';
+import AdminProductsScreen from './screens/admin/AdminProductsScreen';
+import AdminEditProductScreen from './screens/admin/AdminEditProductScreen';
+import AdminNewProductScreen from './screens/admin/AdminNewProductScreen';
 import AppHeader from './components/AppHeader';
-
+import AdminStatsScreen from './screens/admin/AdminStatsScreen';
+import AdminGroupsScreen from './screens/admin/AdminGroupsScreen';
+import AdminUsersScreen from './screens/admin/AdminUsersScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -38,6 +43,27 @@ export default function App() {
           name="CategoryProducts"
           component={CategoryProductsScreen}
         />
+        <Stack.Screen
+  name="AdminCategories"
+  component={AdminCategoriesScreen}
+/>
+<Stack.Screen
+  name="AdminStats"
+  component={AdminStatsScreen}
+/>
+<Stack.Screen
+  name="AdminGroups"
+  component={AdminGroupsScreen}
+/>
+<Stack.Screen
+  name="AdminUsers"
+  component={AdminUsersScreen}
+/>
+
+
+     <Stack.Screen name="AdminProducts" component={AdminProductsScreen} />
+    <Stack.Screen name="AdminEditProduct" component={AdminEditProductScreen} />
+    <Stack.Screen name="AdminNewProduct" component={AdminNewProductScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
