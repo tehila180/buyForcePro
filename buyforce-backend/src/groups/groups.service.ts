@@ -84,15 +84,36 @@ export class GroupsService {
   // =========================
   // ⭐ הצטרפות לקבוצה
   // =========================
-  async joinGroup(groupId: number, userId: string) {
-    await this.prisma.groupMember.upsert({
-      where: { groupId_userId: { groupId, userId } },
-      update: {},
-      create: { groupId, userId },
-    });
+ async joinGroup(groupId: number, userId: string) {
+  // הצטרפות
+  await this.prisma.groupMember.upsert({
+    where: { groupId_userId: { groupId, userId } },
+    update: {},
+    create: { groupId, userId },
+  });
 
-    return { success: true };
+  // בדיקת מצב הקבוצה
+  const group = await this.prisma.group.findUnique({
+    where: { id: groupId },
+    include: { members: true },
+  });
+
+  if (!group) throw new NotFoundException('קבוצה לא נמצאה');
+
+  // ⭐ אם הקבוצה מלאה ועדיין open → נסמן כ-completed
+  if (
+    group.members.length >= group.target &&
+    group.status === 'open'
+  ) {
+    await this.prisma.group.update({
+      where: { id: groupId },
+      data: { status: 'completed' },
+    });
   }
+
+  return { success: true };
+}
+
 
   // =========================
   // ⭐ קבוצה ציבורית
