@@ -9,7 +9,7 @@ export class PaypalService {
       : 'https://api-m.sandbox.paypal.com';
   }
 
-  async getAccessToken() {
+  private async getAccessToken() {
     const clientId = process.env.PAYPAL_CLIENT_ID!;
     const secret = process.env.PAYPAL_SECRET!;
     const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
@@ -28,7 +28,7 @@ export class PaypalService {
     return res.data.access_token as string;
   }
 
-  async createOrder(amountIls: number, paymentId: number) {
+  async createOrder(amountIls: number, paymentId: string) {
     const token = await this.getAccessToken();
     const backend = process.env.BACKEND_URL || 'http://localhost:3001';
     const frontend = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -41,13 +41,14 @@ export class PaypalService {
           {
             amount: {
               currency_code: 'ILS',
-              value: (amountIls / 100).toFixed(2), // אם amount באגורות → מחלקים ב-100
+              value: amountIls.toFixed(2), // ₪1 -> "1.00"
             },
           },
         ],
         application_context: {
+          // ✅ PayPal יחזיר לפה עם token=ORDER_ID
           return_url: `${backend}/payments/paypal/capture?paymentId=${paymentId}`,
-          cancel_url: `${frontend}/payment/cancel?paymentId=${paymentId}`,
+          cancel_url: `${backend}/payments/paypal/cancel?paymentId=${paymentId}`,
         },
       },
       {
@@ -63,10 +64,13 @@ export class PaypalService {
 
   async captureOrder(orderId: string) {
     const accessToken = await this.getAccessToken();
-    await axios.post(
+
+    const res = await axios.post(
       `${this.baseUrl()}/v2/checkout/orders/${orderId}/capture`,
       {},
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
+
+    return res.data;
   }
 }
