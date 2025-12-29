@@ -44,7 +44,6 @@ async function getUserId(): Promise<number | null> {
   try {
     const token = await storage.get('token');
     if (!token) return null;
-
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.sub;
   } catch {
@@ -67,7 +66,6 @@ export default function HomeScreen({ navigation }: any) {
   const [joinedMap, setJoinedMap] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
 
-  /* --- Load data --- */
   useEffect(() => {
     Promise.all([
       apiFetch('/groups/featured'),
@@ -79,36 +77,28 @@ export default function HomeScreen({ navigation }: any) {
         setCategories(categoriesData);
         setFeatured(productsData);
       })
-      .catch(err => {
-        Alert.alert('שגיאה', err.message);
-      })
+      .catch(err => Alert.alert('שגיאה', err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  /* --- Check joined groups --- */
   useEffect(() => {
-    async function loadJoinedStatus() {
+    async function loadJoined() {
       const map: Record<number, boolean> = {};
       for (const g of groups) {
         map[g.id] = await isUserInGroup(g);
       }
       setJoinedMap(map);
     }
-
-    if (groups.length > 0) {
-      loadJoinedStatus();
-    }
+    if (groups.length) loadJoined();
   }, [groups]);
 
   async function handleJoin(productSlug: string) {
     const token = await storage.get('token');
-
     if (!token) {
-      Alert.alert('שגיאה', 'עליך להתחבר כדי להצטרף לקבוצה');
+      Alert.alert('שגיאה', 'יש להתחבר כדי להצטרף');
       navigation.navigate('Login');
       return;
     }
-
     navigation.navigate('Product', { slug: productSlug });
   }
 
@@ -128,7 +118,6 @@ export default function HomeScreen({ navigation }: any) {
         קנייה קבוצתית חכמה – מצטרפים יחד, משלמים פחות 💥
       </Text>
 
-      {/* ⭐ כפתור מתוקן */}
       <Pressable
         style={styles.primaryBtn}
         onPress={() => navigation.navigate('Products')}
@@ -136,27 +125,29 @@ export default function HomeScreen({ navigation }: any) {
         <Text style={styles.primaryText}>התחלת קנייה</Text>
       </Pressable>
 
-      {/* Explanation */}
+      {/* Info Box */}
       <View style={styles.infoBox}>
         <Text>✅ מצטרפים לקבוצה עם דמי השתתפות של ₪1</Text>
         <Text>✅ אם הקבוצה לא מגיעה ליעד – הכסף מוחזר</Text>
         <Text>✅ אם הקבוצה נסגרת – משלמים מחיר קבוצתי מוזל</Text>
       </View>
 
-      {/* Active Groups */}
+      {/* ---------- Active Groups (כמו שהיה) ---------- */}
       <Text style={styles.section}>👥 קבוצות פעילות</Text>
 
       {groups.length === 0 ? (
-        <Text style={styles.muted}>אין קבוצות פעילות כרגע</Text>
+        <Text style={styles.muted}>אין קבוצות פעילות</Text>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView horizontal showsHorizontalScrollIndicator>
           {groups.map(group => {
+            const joined = joinedMap[group.id];
+            const isFull = group.members.length >= group.target;
             const percent = Math.min(
               100,
-              Math.round((group.members.length / group.target) * 100)
+              Math.round(
+                (group.members.length / group.target) * 100
+              )
             );
-
-            const joined = joinedMap[group.id];
 
             return (
               <View key={group.id} style={styles.card}>
@@ -165,7 +156,7 @@ export default function HomeScreen({ navigation }: any) {
                 </Text>
 
                 <Text>
-                  👥 {group.members.length} / {group.target}
+                  👥 {group.members.length}/{group.target}
                 </Text>
 
                 <View style={styles.progressBg}>
@@ -181,25 +172,37 @@ export default function HomeScreen({ navigation }: any) {
                   ₪{group.product.priceGroup}
                 </Text>
 
-                {joined ? (
+                {joined && (
                   <Text style={styles.joined}>
-                    ✅ כבר מצורפת לקבוצה
+                    ✅ כבר מצורפת
                   </Text>
-                ) : (
+                )}
+
+                {!joined && isFull && (
+                  <Text style={styles.full}>
+                    🚫 הקבוצה מלאה
+                  </Text>
+                )}
+
+                {!joined && !isFull && (
                   <Pressable
                     style={styles.joinBtn}
                     onPress={() =>
                       handleJoin(group.product.slug)
                     }
                   >
-                    <Text style={styles.joinText}>הצטרפות</Text>
+                    <Text style={styles.joinText}>
+                      הצטרפות
+                    </Text>
                   </Pressable>
                 )}
 
                 <Pressable
                   style={styles.outlineBtn}
                   onPress={() =>
-                    navigation.navigate('Group', { id: group.id })
+                    navigation.navigate('Group', {
+                      id: group.id,
+                    })
                   }
                 >
                   <Text style={styles.outlineText}>
@@ -213,48 +216,52 @@ export default function HomeScreen({ navigation }: any) {
       )}
 
       {/* Categories */}
-<Text style={styles.section}>קטגוריות</Text>
-
-<View style={styles.rowWrap}>
-  {categories.map(c => (
-    <Pressable
-      key={c.id}
-      style={styles.chip}
-      onPress={() =>
-        navigation.navigate('CategoryProducts', {
-          slug: c.slug,
-          name: c.name,
-        })
-      }
-    >
-      <Text>{c.name}</Text>
-    </Pressable>
-  ))}
-</View>
-
-
-      {/* Featured Products */}
-      <Text style={styles.section}>🔥 מוצרים מובילים</Text>
-
-      {featured.map(p => (
-        <View key={p.id} style={styles.card}>
-          <Text style={styles.cardTitle}>{p.name}</Text>
-          <Text style={styles.oldPrice}>
-            ₪{p.priceRegular}
-          </Text>
-          <Text style={styles.price}>
-            ₪{p.priceGroup}
-          </Text>
-
+      <Text style={styles.section}>קטגוריות</Text>
+      <View style={styles.rowWrap}>
+        {categories.map(c => (
           <Pressable
+            key={c.id}
+            style={styles.chip}
             onPress={() =>
-              navigation.navigate('Product', { slug: p.slug })
+              navigation.navigate('CategoryProducts', {
+                slug: c.slug,
+                name: c.name,
+              })
             }
           >
-            <Text style={styles.link}>לצפייה במוצר →</Text>
+            <Text>{c.name}</Text>
           </Pressable>
-        </View>
-      ))}
+        ))}
+      </View>
+
+      {/* ---------- Featured Products (Grid מותאם מסך) ---------- */}
+      <Text style={styles.section}>🔥 מוצרים מובילים</Text>
+
+      <View style={styles.featuredGrid}>
+        {featured.map(p => (
+          <View key={p.id} style={styles.featuredCard}>
+            <Text style={styles.cardTitle}>{p.name}</Text>
+
+            <Text style={styles.oldPrice}>
+              ₪{p.priceRegular}
+            </Text>
+
+            <Text style={styles.price}>
+              ₪{p.priceGroup}
+            </Text>
+
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Product', { slug: p.slug })
+              }
+            >
+              <Text style={styles.link}>
+                לצפייה במוצר →
+              </Text>
+            </Pressable>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -262,32 +269,24 @@ export default function HomeScreen({ navigation }: any) {
 /* ---------- Styles ---------- */
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
+  container: { padding: 20 },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    marginVertical: 12,
-    maxWidth: 420,
-  },
+
+  title: { fontSize: 32, fontWeight: 'bold' },
+  subtitle: { marginVertical: 12 },
+
   primaryBtn: {
     backgroundColor: '#4f46e5',
     padding: 14,
     borderRadius: 999,
     alignSelf: 'flex-start',
   },
-  primaryText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
+  primaryText: { color: '#fff', fontWeight: '600' },
+
   infoBox: {
     marginTop: 24,
     backgroundColor: '#f5f5f5',
@@ -295,48 +294,55 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
+
   section: {
     marginTop: 40,
     fontSize: 20,
     fontWeight: '600',
   },
-  muted: {
-    color: '#666',
-    marginTop: 8,
-  },
+  muted: { color: '#666', marginTop: 8 },
+
   card: {
     width: 260,
     marginRight: 16,
-    marginTop: 16,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: '#fff',
   },
-  cardTitle: {
-    fontWeight: '600',
-    fontSize: 16,
-  },
+
+  cardTitle: { fontSize: 16, fontWeight: '600' },
+
   progressBg: {
     height: 8,
     backgroundColor: '#eee',
     borderRadius: 999,
-    overflow: 'hidden',
     marginVertical: 8,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4f46e5',
   },
-  price: {
-    fontWeight: 'bold',
-    marginVertical: 6,
+
+  price: { fontWeight: 'bold', marginVertical: 6 },
+  oldPrice: {
+    textDecorationLine: 'line-through',
+    color: '#999',
   },
+
   joined: {
     color: 'green',
     fontWeight: '600',
+    marginTop: 8,
   },
+  full: {
+    color: '#c0392b',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+
   joinBtn: {
     backgroundColor: '#4f46e5',
     paddingVertical: 8,
@@ -348,6 +354,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+
   outlineBtn: {
     marginTop: 8,
     borderWidth: 1,
@@ -359,6 +366,7 @@ const styles = StyleSheet.create({
     color: '#4f46e5',
     textAlign: 'center',
   },
+
   rowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -372,10 +380,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
   },
-  oldPrice: {
-    textDecorationLine: 'line-through',
-    color: '#999',
+
+  /* 🔥 Featured Grid */
+  featuredGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 12,
   },
+  featuredCard: {
+    width: '48%',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 16,
+  },
+
   link: {
     color: '#4f46e5',
     fontWeight: '600',
