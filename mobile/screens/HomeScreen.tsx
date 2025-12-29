@@ -213,21 +213,25 @@ export default function HomeScreen({ navigation }: any) {
       )}
 
       {/* Categories */}
-      <Text style={styles.section}>קטגוריות</Text>
+<Text style={styles.section}>קטגוריות</Text>
 
-      <View style={styles.rowWrap}>
-        {categories.map(c => (
-          <Pressable
-            key={c.id}
-            style={styles.chip}
-            onPress={() =>
-              navigation.navigate('Category', { slug: c.slug })
-            }
-          >
-            <Text>{c.name}</Text>
-          </Pressable>
-        ))}
-      </View>
+<View style={styles.rowWrap}>
+  {categories.map(c => (
+    <Pressable
+      key={c.id}
+      style={styles.chip}
+      onPress={() =>
+        navigation.navigate('CategoryProducts', {
+          slug: c.slug,
+          name: c.name,
+        })
+      }
+    >
+      <Text>{c.name}</Text>
+    </Pressable>
+  ))}
+</View>
+
 
       {/* Featured Products */}
       <Text style={styles.section}>🔥 מוצרים מובילים</Text>
