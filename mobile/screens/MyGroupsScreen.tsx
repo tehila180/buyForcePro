@@ -17,9 +17,7 @@ type Member = {
 
 type Group = {
   id: number;
-  product: {
-    name: string;
-  };
+  product: { name: string };
   target: number;
   membersCount: number;
   members: Member[];
@@ -57,75 +55,58 @@ export default function MyGroupsScreen({ navigation }: any) {
 
       {groups.map(group => (
         <View key={group.id} style={styles.card}>
-          <Text style={styles.productName}>
-            {group.product.name}
-          </Text>
-
-          <Text style={styles.count}>
+          <Text style={styles.productName}>{group.product.name}</Text>
+          <Text style={styles.membersCount}>
             👥 {group.membersCount} / {group.target}
           </Text>
 
-          <Text style={styles.section}>משתתפים</Text>
+          {/* כפתור תשלום */}
+          {group.isCompleted && !group.hasPaid && (
+            <Pressable
+              style={styles.payBtn}
+              onPress={() =>
+                navigation.navigate('Pay', { groupId: group.id })
+              }
+            >
+              <Text style={styles.payText}>💳 המשך לתשלום</Text>
+            </Pressable>
+          )}
 
-          {group.members.map(m => (
-            <View key={m.id} style={styles.memberRow}>
-              <Text>{m.name}</Text>
-              <Text
-                style={[
-                  styles.payment,
-                  m.hasPaid
-                    ? styles.paid
-                    : styles.pending,
-                ]}
-              >
-                {m.hasPaid ? '✅ שילם' : '⏳ ממתין'}
-              </Text>
-            </View>
-          ))}
+          {/* סטטוס אישי */}
+          {group.hasPaid && (
+            <Text style={styles.success}>✅ את/ה שילמת</Text>
+          )}
 
-          {/* 🎉 כולם שילמו */}
+          {/* סטטוס קבוצה */}
           {group.allPaid && (
             <Text style={styles.success}>
-              🎉 הקבוצה הושלמה – כולם שילמו!
+              🎉 הקבוצה הושלמה – כולם שילמו
             </Text>
           )}
 
-          {/* ⏳ הקבוצה עדיין לא מלאה */}
-          {!group.isCompleted && (
-            <Text style={styles.muted}>
-              ⏳ ממתינים להשלמת הקבוצה
-            </Text>
-          )}
+          {/* 🔽 מי שילם / לא שילם */}
+          <View style={styles.membersBox}>
+            <Text style={styles.membersTitle}>סטטוס תשלומים:</Text>
 
-          {/* 💳 הקבוצה מלאה אבל המשתמש עוד לא שילם */}
-          {group.isCompleted &&
-            !group.hasPaid &&
-            !group.allPaid && (
-              <Pressable
-                style={styles.payBtn}
-                onPress={() =>
-                  navigation.navigate('Pay', { id: group.id })
-                }
-              >
-                <Text style={styles.payText}>
-                  💳 המשך לתשלום
+            {group.members.map(member => (
+              <View key={member.id} style={styles.memberRow}>
+                <Text style={styles.memberName}>{member.name}</Text>
+                <Text
+                  style={[
+                    styles.memberStatus,
+                    member.hasPaid ? styles.paid : styles.notPaid,
+                  ]}
+                >
+                  {member.hasPaid ? '✅ שילם' : '⏳ ממתין'}
                 </Text>
-              </Pressable>
-            )}
-
-          {/* ✅ המשתמש שילם אבל עוד לא כולם */}
-          {group.hasPaid && !group.allPaid && (
-            <Text style={styles.success}>
-              ✅ שילמת – ממתינים לשאר המשתתפים
-            </Text>
-          )}
+              </View>
+            ))}
+          </View>
         </View>
       ))}
     </ScrollView>
   );
 }
-
-/* ---------- Styles ---------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -144,49 +125,24 @@ const styles = StyleSheet.create({
   },
   muted: {
     color: '#666',
-    marginBottom: 12,
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    elevation: 3,
   },
   productName: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 6,
   },
-  count: {
-    marginBottom: 12,
-  },
-  section: {
-    fontSize: 16,
-    fontWeight: '600',
+  membersCount: {
+    marginTop: 4,
     marginBottom: 8,
-  },
-  memberRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  payment: {
-    fontWeight: '500',
-  },
-  paid: {
-    color: '#00b894',
-  },
-  pending: {
-    color: '#e17055',
-  },
-  success: {
-    color: '#00b894',
-    fontWeight: '700',
-    marginTop: 12,
+    color: '#444',
   },
   payBtn: {
-    marginTop: 14,
+    marginTop: 12,
     backgroundColor: '#000',
     paddingVertical: 12,
     borderRadius: 8,
@@ -195,5 +151,37 @@ const styles = StyleSheet.create({
   payText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  success: {
+    color: '#00b894',
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  membersBox: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 12,
+  },
+  membersTitle: {
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  memberName: {
+    color: '#333',
+  },
+  memberStatus: {
+    fontWeight: '600',
+  },
+  paid: {
+    color: '#00b894',
+  },
+  notPaid: {
+    color: '#e17055',
   },
 });
