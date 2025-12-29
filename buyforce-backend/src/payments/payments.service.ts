@@ -1,78 +1,97 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaymentStatus, PaymentProvider } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
   constructor(private prisma: PrismaService) {}
 
-  async confirmPayment(
-    userId: string,
-    groupId: number,
-    paypalOrderId: string,
-  ) {
-    // 1️⃣ בדיקה: כבר שילם?
+  // "Pending" אצלך זה CREATED (כי זה enum קיים בסכמה)
+  async createPendingPayment(userId: string, groupId: number, amountIls: number) {
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: { members: true },
+    });
+
+    if (!group) throw new BadRequestException('Group not found');
+
+    const isMember = group.members.some(m => m.userId === userId);
+    if (!isMember) throw new ForbiddenException('User is not a member');
+
+    // כבר שילם? (CAPTURED)
     const existing = await this.prisma.payment.findFirst({
       where: {
         userId,
         groupId,
-        status: 'CAPTURED',
+        status: PaymentStatus.CAPTURED,
       },
     });
 
-    if (existing) {
-      throw new BadRequestException('User already paid');
-    }
+    if (existing) throw new BadRequestException('User already paid');
 
-    // 2️⃣ קבוצה + חברים
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        product: true,
-        members: true,
-        payments: true,
-      },
-    });
-
-    if (!group) {
-      throw new BadRequestException('Group not found');
-    }
-
-    // 3️⃣ בדיקה: המשתמש חבר בקבוצה
-    const isMember = group.members.some(m => m.userId === userId);
-    if (!isMember) {
-      throw new ForbiddenException('User is not a member of this group');
-    }
-
-    // 4️⃣ יצירת תשלום
-    const payment = await this.prisma.payment.create({
+    return this.prisma.payment.create({
       data: {
-        provider: 'PAYPAL', // ✅ עקבי
-        status: 'CAPTURED',
+        provider: PaymentProvider.PAYPAL,
+        status: PaymentStatus.CREATED, // ✅ תואם enum שלך
         userId,
         groupId,
-        amount: group.product.priceGroup,
+        amount: amountIls,
         currency: 'ILS',
+      },
+    });
+  }
+
+  async markPaymentCaptured(paymentId: string, paypalOrderId: string, paypalCaptureId: string | null) {
+    // ✅ paymentId הוא string לפי הסכמה
+    const payment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.CAPTURED,
         paypalOrderId,
+        paypalCaptureId,
       },
     });
 
-    // 5️⃣ האם כולם שילמו?
+    // ✅ אצלך יש relation group, אז אפשר לכלול אותו
+    const group = await this.prisma.group.findUnique({
+      where: { id: payment.groupId },
+      include: { members: true, payments: true },
+    });
+
+    if (!group) return { success: true };
+
     const paidUsers = new Set(
-      [...group.payments, payment]
-        .filter(p => p.status === 'CAPTURED')
+      group.payments
+        .filter(p => p.status === PaymentStatus.CAPTURED)
         .map(p => p.userId),
     );
 
+    // אם כולם שילמו -> group.status = "paid"
     if (paidUsers.size === group.members.length) {
       await this.prisma.group.update({
         where: { id: group.id },
-        data: {
-          status: 'paid',
-          paidAt: new Date(),
-        },
+        data: { status: 'paid', paidAt: new Date() },
       });
     }
 
     return { success: true };
+  }
+
+  async markPaymentCanceled(paymentId: string) {
+    return this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.CANCELED },
+    });
+  }
+
+  async markPaymentFailed(paymentId: string) {
+    return this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.FAILED },
+    });
   }
 }
