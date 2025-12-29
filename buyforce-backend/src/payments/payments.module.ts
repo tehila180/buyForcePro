@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaypalService } from './paypal.service';
 
 @Module({
-  controllers: [PaymentsController],
+  controllers: [PaymentsController], // ✅ רק זה
   providers: [PaymentsService, PaypalService, PrismaService],
 })
 export class PaymentsModule {}
