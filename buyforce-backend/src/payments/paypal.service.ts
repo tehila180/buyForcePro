@@ -31,7 +31,7 @@ export class PaypalService {
   async createOrder(amountIls: number, paymentId: string) {
   const token = await this.getAccessToken();
 
-  const frontend = process.env.FRONTEND_URL || 'http://localhost:19006';
+  const backend = process.env.BACKEND_URL || 'http://localhost:3001';
 
   const res = await axios.post(
     `${this.baseUrl()}/v2/checkout/orders`,
@@ -46,8 +46,8 @@ export class PaypalService {
         },
       ],
       application_context: {
-        return_url: `${frontend}/payment/success?paymentId=${paymentId}`,
-        cancel_url: `${frontend}/payment/cancel?paymentId=${paymentId}`,
+        return_url: `${backend}/payments/paypal/capture?paymentId=${paymentId}`,
+        cancel_url: `${backend}/payments/paypal/cancel`,
       },
     },
     {
@@ -60,6 +60,7 @@ export class PaypalService {
 
   return res.data;
 }
+
 
 
   async captureOrder(orderId: string) {
