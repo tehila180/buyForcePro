@@ -29,38 +29,38 @@ export class PaypalService {
   }
 
   async createOrder(amountIls: number, paymentId: string) {
-    const token = await this.getAccessToken();
-    const backend = process.env.BACKEND_URL || 'http://localhost:3001';
-    const frontend = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const token = await this.getAccessToken();
 
-    const res = await axios.post(
-      `${this.baseUrl()}/v2/checkout/orders`,
-      {
-        intent: 'CAPTURE',
-        purchase_units: [
-          {
-            amount: {
-              currency_code: 'ILS',
-              value: amountIls.toFixed(2), // ₪1 -> "1.00"
-            },
+  const frontend = process.env.FRONTEND_URL || 'http://localhost:19006';
+
+  const res = await axios.post(
+    `${this.baseUrl()}/v2/checkout/orders`,
+    {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          amount: {
+            currency_code: 'ILS',
+            value: amountIls.toFixed(2),
           },
-        ],
-        application_context: {
-          // ✅ PayPal יחזיר לפה עם token=ORDER_ID
-          return_url: `${backend}/payments/paypal/capture?paymentId=${paymentId}`,
-          cancel_url: `${backend}/payments/paypal/cancel?paymentId=${paymentId}`,
         },
+      ],
+      application_context: {
+        return_url: `${frontend}/payment/success?paymentId=${paymentId}`,
+        cancel_url: `${frontend}/payment/cancel?paymentId=${paymentId}`,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
-    );
+    },
+  );
 
-    return res.data;
-  }
+  return res.data;
+}
+
 
   async captureOrder(orderId: string) {
     const accessToken = await this.getAccessToken();
