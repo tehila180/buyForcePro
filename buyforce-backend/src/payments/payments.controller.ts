@@ -7,6 +7,7 @@ import {
   Get,
   Query,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -20,36 +21,35 @@ export class PaymentsController {
     private readonly paypalService: PaypalService,
   ) {}
 
-  // 1) יצירת תשלום פנימי + יצירת Order בפייפל + החזרת approvalUrl
+  // 1️⃣ יצירת תשלום + Order ב-PayPal
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
-  async create(@Req() req: any, @Body() body: { groupId: number }) {
+  async create(@Req() req: any, @Body() body: { groupId: number | string }) {
     const userId: string = req.user.userId;
 
-    // ✅ אצלך המחירים הם Int (שקלים/אגורות לפי מה שבחרת).
-    // כאן אנחנו עושים דמי הצטרפות ₪1 -> amount = 1
+    const groupId = Number(body.groupId);
+    if (Number.isNaN(groupId)) {
+      throw new BadRequestException('Invalid groupId');
+    }
+
     const amountIls = 1;
 
     const payment = await this.paymentsService.createPendingPayment(
       userId,
-      body.groupId,
+      groupId,
       amountIls,
     );
 
-    // ✅ payment.id הוא string לפי הסכמה שלך
     const order = await this.paypalService.createOrder(amountIls, payment.id);
 
-    const approval = order?.links?.find((l: any) => l.rel === 'approve');
+    const approval = order.links.find((l: any) => l.rel === 'approve');
 
     return {
-      paymentId: payment.id,
-      approvalUrl: approval?.href,
-      paypalOrderId: order?.id,
+      approvalUrl: approval.href,
     };
   }
 
-  // 2) PayPal מחזיר לפה אחרי אישור (approve) כדי שנבצע CAPTURE
-  // PayPal בד"כ שולח query בשם token (זה ה-orderId)
+  // 2️⃣ PayPal חוזר לשרת → CAPTURE → redirect ל-Frontend
   @Get('capture')
   async capture(
     @Query('token') orderId: string,
@@ -62,28 +62,27 @@ export class PaymentsController {
       const captureId =
         capture?.purchase_units?.[0]?.payments?.captures?.[0]?.id ?? null;
 
-      await this.paymentsService.markPaymentCaptured(paymentId, orderId, captureId);
-
-      // ✅ את יכולה להחליף ל-deeplink למובייל בהמשך
-      return res.redirect(
-        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?paymentId=${paymentId}`,
+      await this.paymentsService.markPaymentCaptured(
+        paymentId,
+        orderId,
+        captureId,
       );
-    } catch (e) {
+
       return res.redirect(
-        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success/fail?paymentId=${paymentId}`,
+        `${process.env.FRONTEND_URL || 'http://localhost:8081'}/payment/success`,
+      );
+    } catch {
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:8081'}/payment/fail`,
       );
     }
   }
 
-  // 3) ביטול מצד PayPal (או Cancel)
+  // 3️⃣ ביטול
   @Get('cancel')
-  async cancel(@Query('paymentId') paymentId: string, @Res() res: Response) {
-    try {
-      await this.paymentsService.markPaymentCanceled(paymentId);
-    } catch {}
-
+  async cancel(@Res() res: Response) {
     return res.redirect(
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/cancel?paymentId=${paymentId}`,
+      `${process.env.FRONTEND_URL || 'http://localhost:8081'}/payment/cancel`,
     );
   }
 }
