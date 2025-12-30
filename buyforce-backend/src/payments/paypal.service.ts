@@ -9,7 +9,10 @@ export class PaypalService {
       : 'https://api-m.sandbox.paypal.com';
   }
 
-  private async getAccessToken() {
+  /**
+   * קבלת Access Token מ-PayPal
+   */
+  private async getAccessToken(): Promise<string> {
     const clientId = process.env.PAYPAL_CLIENT_ID!;
     const secret = process.env.PAYPAL_SECRET!;
     const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
@@ -28,47 +31,62 @@ export class PaypalService {
     return res.data.access_token as string;
   }
 
+  /**
+   * 🔥 יצירת Order ב-PayPal
+   * 🔥 החזרה ל-Frontend עם URL מלא וחוקי בלבד
+   */
   async createOrder(amountIls: number, paymentId: string) {
-  const token = await this.getAccessToken();
+    const token = await this.getAccessToken();
 
-  const frontend = process.env.FRONTEND_URL || 'http://localhost:19006';
+    // ✅ הגנה מוחלטת: FRONTEND_URL חייב להיות URL מלא
+    const frontend =
+      process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('http')
+        ? process.env.FRONTEND_URL
+        : 'http://localhost:8081';
 
-  const res = await axios.post(
-    `${this.baseUrl()}/v2/checkout/orders`,
-    {
-      intent: 'CAPTURE',
-      purchase_units: [
-        {
-          amount: {
-            currency_code: 'ILS',
-            value: amountIls.toFixed(2),
+    const res = await axios.post(
+      `${this.baseUrl()}/v2/checkout/orders`,
+      {
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            amount: {
+              currency_code: 'ILS',
+              value: amountIls.toFixed(2), // לדוגמה: "1.00"
+            },
           },
+        ],
+        application_context: {
+          // ❗ חייב להיות URL מלא (כולל http://localhost:8081)
+          return_url: `${frontend}/payment/success?paymentId=${paymentId}`,
+          cancel_url: `${frontend}/payment/cancel?paymentId=${paymentId}`,
         },
-      ],
-      application_context: {
-        return_url: `${frontend}/payment/success?paymentId=${paymentId}`,
-        cancel_url: `${frontend}/payment/cancel?paymentId=${paymentId}`,
       },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       },
-    },
-  );
+    );
 
-  return res.data;
-}
+    return res.data;
+  }
 
-
+  /**
+   * Capture של Order אחרי אישור מה-Frontend
+   */
   async captureOrder(orderId: string) {
     const accessToken = await this.getAccessToken();
 
     const res = await axios.post(
       `${this.baseUrl()}/v2/checkout/orders/${orderId}/capture`,
       {},
-      { headers: { Authorization: `Bearer ${accessToken}` } },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
     );
 
     return res.data;
