@@ -4,8 +4,11 @@ import {
   Body,
   Req,
   UseGuards,
-  BadRequestException,
+  Get,
+  Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService } from './payments.service';
 import { PaypalService } from './paypal.service';
@@ -17,40 +20,26 @@ export class PaymentsController {
     private readonly paypalService: PaypalService,
   ) {}
 
-  /**
-   * 1️⃣ יצירת Payment פנימי + יצירת Order ב-PayPal
-   */
+  // 1) יצירת תשלום פנימי + יצירת Order בפייפל + החזרת approvalUrl
   @Post('create')
   @UseGuards(AuthGuard('jwt'))
-  async create(@Req() req: any, @Body() body: { groupId: number | string }) {
+  async create(@Req() req: any, @Body() body: { groupId: number }) {
     const userId: string = req.user.userId;
 
-    // 🔥 תיקון קריטי: groupId מגיע כ-string מה-Frontend
-    const groupId = Number(body.groupId);
-    if (Number.isNaN(groupId)) {
-      throw new BadRequestException('Invalid groupId');
-    }
-
-    // סכום בדיקה (₪1)
+    // ✅ אצלך המחירים הם Int (שקלים/אגורות לפי מה שבחרת).
+    // כאן אנחנו עושים דמי הצטרפות ₪1 -> amount = 1
     const amountIls = 1;
 
-    // יצירת תשלום פנימי (CREATED)
     const payment = await this.paymentsService.createPendingPayment(
       userId,
-      groupId,
+      body.groupId,
       amountIls,
     );
 
-    // יצירת Order ב-PayPal
-    const order = await this.paypalService.createOrder(
-      amountIls,
-      payment.id,
-    );
+    // ✅ payment.id הוא string לפי הסכמה שלך
+    const order = await this.paypalService.createOrder(amountIls, payment.id);
 
-    // קישור לאישור התשלום
-    const approval = order?.links?.find(
-      (l: any) => l.rel === 'approve',
-    );
+    const approval = order?.links?.find((l: any) => l.rel === 'approve');
 
     return {
       paymentId: payment.id,
@@ -59,31 +48,42 @@ export class PaymentsController {
     };
   }
 
-  /**
-   * 2️⃣ Capture – נקרא מה-Frontend אחרי חזרה מ-PayPal
-   */
-  @Post('capture')
-  @UseGuards(AuthGuard('jwt'))
-  async captureFromClient(
-    @Body() body: { orderId: string; paymentId: string },
+  // 2) PayPal מחזיר לפה אחרי אישור (approve) כדי שנבצע CAPTURE
+  // PayPal בד"כ שולח query בשם token (זה ה-orderId)
+  @Get('capture')
+  async capture(
+    @Query('token') orderId: string,
+    @Query('paymentId') paymentId: string,
+    @Res() res: Response,
   ) {
-    if (!body.orderId || !body.paymentId) {
-      throw new BadRequestException('Missing orderId or paymentId');
+    try {
+      const capture = await this.paypalService.captureOrder(orderId);
+
+      const captureId =
+        capture?.purchase_units?.[0]?.payments?.captures?.[0]?.id ?? null;
+
+      await this.paymentsService.markPaymentCaptured(paymentId, orderId, captureId);
+
+      // ✅ את יכולה להחליף ל-deeplink למובייל בהמשך
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?paymentId=${paymentId}`,
+      );
+    } catch (e) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success/fail?paymentId=${paymentId}`,
+      );
     }
+  }
 
-    // Capture מול PayPal
-    const capture = await this.paypalService.captureOrder(body.orderId);
+  // 3) ביטול מצד PayPal (או Cancel)
+  @Get('cancel')
+  async cancel(@Query('paymentId') paymentId: string, @Res() res: Response) {
+    try {
+      await this.paymentsService.markPaymentCanceled(paymentId);
+    } catch {}
 
-    const captureId =
-      capture?.purchase_units?.[0]?.payments?.captures?.[0]?.id ?? null;
-
-    // עדכון DB
-    await this.paymentsService.markPaymentCaptured(
-      body.paymentId,
-      body.orderId,
-      captureId,
+    return res.redirect(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/cancel?paymentId=${paymentId}`,
     );
-
-    return { success: true };
   }
 }
