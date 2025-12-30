@@ -115,18 +115,7 @@ export default function ProductScreen({ route, navigation }: any) {
           </View>
         ))}
 
-        <Pressable
-          style={[
-            styles.createBtn,
-            creating && { backgroundColor: '#ccc' },
-          ]}
-          onPress={openGroup}
-          disabled={creating}
-        >
-          <Text style={styles.createText}>
-            {creating ? 'פותח קבוצה…' : '🚀 פתיחת קבוצה חדשה'}
-          </Text>
-        </Pressable>
+      
       </View>
     </ScrollView>
   );
