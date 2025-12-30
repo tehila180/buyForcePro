@@ -2,6 +2,14 @@ import { storage } from './storage';
 
 const API_BASE = 'https://buyforcepro-production.up.railway.app';
 
+/**
+ * apiFetch
+ * --------
+ * עטיפה ל-fetch עם:
+ * - Authorization אוטומטי
+ * - החזרת JSON
+ * - זריקת שגיאה עם status
+ */
 export async function apiFetch(
   path: string,
   options: RequestInit = {}
@@ -12,9 +20,7 @@ export async function apiFetch(
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   });
@@ -22,10 +28,16 @@ export async function apiFetch(
   let data: any = null;
   try {
     data = await res.json();
-  } catch {}
+  } catch {
+    // response בלי body
+  }
 
   if (!res.ok) {
-    throw new Error(data?.message || 'Unauthorized');
+    const error: any = new Error(
+      data?.message || 'Request failed'
+    );
+    error.status = res.status; // ⭐️ חשוב מאוד
+    throw error;
   }
 
   return data;
