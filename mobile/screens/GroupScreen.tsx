@@ -7,8 +7,11 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { apiFetch } from '../lib/api';
+
+/* ---------- Types ---------- */
 
 type Member = {
   id: string;
@@ -29,6 +32,8 @@ type Group = {
   members: Member[];
 };
 
+/* ---------- Screen ---------- */
+
 export default function GroupScreen({ route, navigation }: any) {
   const { id } = route.params;
 
@@ -36,13 +41,15 @@ export default function GroupScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
 
+  /* ---------- Load Group ---------- */
+
   async function loadGroup() {
     setLoading(true);
     try {
       const data = await apiFetch(`/groups/${id}`);
       setGroup(data);
     } catch {
-      Alert.alert('שגיאה', 'קבוצה לא נמצאה');
+      showMessage('שגיאה', 'קבוצה לא נמצאה');
     } finally {
       setLoading(false);
     }
@@ -52,19 +59,45 @@ export default function GroupScreen({ route, navigation }: any) {
     loadGroup();
   }, [id]);
 
+  /* ---------- Helper: Message ---------- */
+
+  function showMessage(title: string, message: string) {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  }
+
+  /* ---------- Join Group ---------- */
+
   async function joinGroup() {
     if (!group) return;
 
     try {
       setJoining(true);
-      await apiFetch(`/groups/${group.id}/join`, { method: 'POST' });
+      await apiFetch(`/groups/${group.id}/join`, {
+        method: 'POST',
+      });
       await loadGroup();
-    } catch {
-      Alert.alert('שגיאה', 'יש להתחבר כדי להצטרף');
+    } catch (error: any) {
+      console.log('JOIN GROUP ERROR:', error?.status);
+
+      if (error?.status === 401) {
+        showMessage(
+          'נדרש חשבון',
+          'כדי להצטרף לקבוצה עליך להתחבר או להירשם',
+        );
+        return;
+      }
+
+      showMessage('שגיאה', 'לא ניתן להצטרף לקבוצה');
     } finally {
       setJoining(false);
     }
   }
+
+  /* ---------- Loading ---------- */
 
   if (loading) {
     return (
@@ -83,6 +116,8 @@ export default function GroupScreen({ route, navigation }: any) {
     );
   }
 
+  /* ---------- Helpers ---------- */
+
   const isFull = group.membersCount >= group.target;
   const isCompleted = group.status === 'completed';
   const isPaid = group.status === 'paid';
@@ -90,15 +125,15 @@ export default function GroupScreen({ route, navigation }: any) {
   const me = group.members.find(m => m.isMe);
   const iPaid = me?.hasPaid === true;
 
+  /* ---------- UI ---------- */
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Header */}
       <Text style={styles.title}>{group.product.name}</Text>
       <Text style={styles.subtitle}>
         👥 {group.membersCount} / {group.target}
       </Text>
 
-      {/* Members */}
       <Text style={styles.section}>משתתפים</Text>
 
       <View style={styles.membersBox}>
@@ -124,42 +159,9 @@ export default function GroupScreen({ route, navigation }: any) {
         ))}
       </View>
 
-      {/* Status messages */}
-      {group.isMember && (
-        <Text style={styles.success}>✔️ את כבר מצורפת לקבוצה</Text>
-      )}
-
-      {group.isMember && isCompleted && !iPaid && (
-        <Pressable
-          style={styles.payBtn}
-          onPress={() =>
-            navigation.navigate('Pay', { groupId: group.id })
-          }
-        >
-          <Text style={styles.payText}>💳 המשך לתשלום</Text>
-        </Pressable>
-      )}
-
-      {group.isMember && iPaid && (
-        <Text style={styles.success}>✅ שילמת בהצלחה</Text>
-      )}
-
-      {isPaid && (
-        <Text style={styles.success}>
-          🎉 הקבוצה נסגרה – כולם שילמו
-        </Text>
-      )}
-
-      {!group.isMember && isFull && (
-        <Text style={styles.muted}>🚫 הקבוצה מלאה</Text>
-      )}
-
       {!group.isMember && !isFull && group.status === 'open' && (
         <Pressable
-          style={[
-            styles.joinBtn,
-            joining && { backgroundColor: '#ccc' },
-          ]}
+          style={styles.joinBtn}
           onPress={joinGroup}
           disabled={joining}
         >
@@ -228,15 +230,6 @@ const styles = StyleSheet.create({
   pending: {
     color: '#e17055',
   },
-  success: {
-    color: '#00b894',
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  muted: {
-    color: '#777',
-    marginBottom: 12,
-  },
   joinBtn: {
     backgroundColor: '#6c4eff',
     paddingVertical: 14,
@@ -244,18 +237,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  payBtn: {
-    backgroundColor: '#000',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  payText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
