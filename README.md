@@ -6,7 +6,7 @@
 כדי להפעיל צד לקוח עליך לפתוח בטרמינל חדש cd mobile ואז לעשות npm install ואז להריץ על ידי הפעולה npx expo start
 
 
-לצפייה בתמונות מתוך הפרוייקט לחץ כאן בקישור -[הסבר תמונות מתוך הפרוייקט.pdf](https://github.com/user-attachments/files/24401206/default.pdf)
+לצפייה בתמונות מתוך הפרוייקט לחץ כאן בקישור - [הסבר תמונות מתוך הפרוייקט.pdf](https://github.com/user-attachments/files/24401206/default.pdf)
  
 
 # 🛒 BuyForce – פלטפורמת רכישה קבוצתית
@@ -120,6 +120,8 @@
 
 ## 👩‍💻 יוצרת הפרויקט
 תהילה חסון
+
 אימייל לכל שאלה בנושא : tehila.ch12@gmail.com
+
 
 
