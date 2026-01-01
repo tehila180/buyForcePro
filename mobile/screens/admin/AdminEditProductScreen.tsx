@@ -67,35 +67,43 @@ export default function AdminEditProductScreen({ navigation }: any) {
     <View style={styles.container}>
       <Text style={styles.title}>✏️ עריכת מוצר</Text>
 
+      {/* שם מוצר */}
+      <Text style={styles.label}>שם המוצר</Text>
       <TextInput
         style={styles.input}
         value={name}
         onChangeText={setName}
-        placeholder="שם מוצר"
+        placeholder="לדוגמה: טוסטר"
       />
 
+      {/* מחיר רגיל */}
+      <Text style={styles.label}>מחיר רגיל (₪)</Text>
       <TextInput
         style={styles.input}
         value={priceRegular}
         onChangeText={setPriceRegular}
         keyboardType="numeric"
-        placeholder="מחיר רגיל"
+        placeholder="לדוגמה: 250"
       />
 
+      {/* מחיר קבוצתי */}
+      <Text style={styles.label}>מחיר קבוצתי (₪)</Text>
       <TextInput
         style={styles.input}
         value={priceGroup}
         onChangeText={setPriceGroup}
         keyboardType="numeric"
-        placeholder="מחיר קבוצתי"
+        placeholder="לדוגמה: 200"
       />
 
+      {/* קטגוריה */}
+      <Text style={styles.label}>קטגוריה (ID)</Text>
       <TextInput
         style={styles.input}
         value={categoryId}
         onChangeText={setCategoryId}
         keyboardType="numeric"
-        placeholder="קטגוריה ID"
+        placeholder="לדוגמה: 3"
       />
 
       <Pressable style={styles.saveBtn} onPress={save}>
@@ -104,6 +112,8 @@ export default function AdminEditProductScreen({ navigation }: any) {
     </View>
   );
 }
+
+/* ---------- Styles ---------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -121,14 +131,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
   },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#333',
+  },
   input: {
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   saveBtn: {
-    marginTop: 20,
+    marginTop: 10,
     backgroundColor: '#4f46e5',
     padding: 14,
     borderRadius: 999,
@@ -137,5 +153,6 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 16,
   },
 });
